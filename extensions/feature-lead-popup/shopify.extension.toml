@@ -1,0 +1,7 @@
+api_version = "2025-04"
+uid = "078d4fe5-fde1-82b7-c111-ffa2202f47de43f6aeab"
+
+[[extensions]]
+name = "CPS feature lead bridge"
+handle = "feature-lead-popup"
+type = "theme"

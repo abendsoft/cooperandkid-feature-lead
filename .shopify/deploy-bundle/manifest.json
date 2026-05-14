@@ -3,6 +3,19 @@
   "handle": "",
   "modules": [
     {
+      "type": "theme_app_extension",
+      "handle": "feature-lead-popup",
+      "uid": "078d4fe5-fde1-82b7-c111-ffa2202f47de43f6aeab",
+      "uuid": "078d4fe5-fde1-82b7-c111-ffa2202f47de43f6aeab",
+      "assets": "078d4fe5-fde1-82b7-c111-ffa2202f47de43f6aeab",
+      "target": "",
+      "config": {
+        "theme_extension": {
+          "files": {}
+        }
+      }
+    },
+    {
       "type": "app_access",
       "handle": "app_access",
       "uid": "app_access",
@@ -12,7 +25,7 @@
         "scopes": "read_customers,read_draft_orders,write_customers,write_draft_orders",
         "use_legacy_install_flow": false,
         "redirect_url_allowlist": [
-          "https://feature-lead-bridge.vercel.app/api/auth/callback"
+          "https://cooperandkid-feature-lead.vercel.app/api/auth/callback"
         ]
       }
     },
@@ -33,7 +46,7 @@
       "assets": "app_proxy",
       "target": "",
       "config": {
-        "url": "https://feature-lead-bridge.vercel.app/api/feature-lead",
+        "url": "https://cooperandkid-feature-lead.vercel.app/api/feature-lead",
         "subpath": "feature-lead",
         "prefix": "apps"
       }
@@ -56,7 +69,7 @@
       "target": "",
       "config": {
         "app_url": "https://cooperandkid-feature-lead.vercel.app/",
-        "embedded": false
+        "embedded": true
       }
     },
     {
@@ -67,6 +80,28 @@
       "target": "",
       "config": {
         "name": "Feature Lead Bridge"
+      }
+    },
+    {
+      "type": "data",
+      "handle": "data",
+      "uid": "data",
+      "assets": "data",
+      "target": "",
+      "config": {
+        "shop": {
+          "metafields": {
+            "app": {
+              "feature_lead_submissions": {
+                "type": "json",
+                "name": "Feature lead submissions",
+                "access": {
+                  "admin": "merchant_read"
+                }
+              }
+            }
+          }
+        }
       }
     }
   ]

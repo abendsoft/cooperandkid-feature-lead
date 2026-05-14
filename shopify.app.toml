@@ -1,14 +1,24 @@
+# Simple setup (no DNS on esa.cooperandkid.com):
+# - Deploy this repo to Vercel (Import Git repo). Vercel gives you https://<project>.vercel.app automatically.
+# - Put that exact origin in application_url + app_proxy + auth below (replace cooperandkid-feature-lead if your project name differs).
+# - Your storefront still uses https://esa.cooperandkid.com/apps/feature-lead — Shopify forwards that to the URL in [app_proxy].url
+# - Shop API / "Shop domain" in the app UI: cooperandkid.myshopify.com
 name = "Feature Lead Bridge"
 client_id = "043415e66e7e5406b59601709dba928f"
 application_url = "https://cooperandkid-feature-lead.vercel.app/"
-embedded = false
+embedded = true
 
 [access_scopes]
 scopes = "write_draft_orders,read_draft_orders,read_customers,write_customers"
 use_legacy_install_flow = false
 
+[shop.metafields.app.feature_lead_submissions]
+type = "json"
+name = "Feature lead submissions"
+access.admin = "merchant_read"
+
 [app_proxy]
-url = "https://feature-lead-bridge.vercel.app/api/feature-lead"
+url = "https://cooperandkid-feature-lead.vercel.app/api/feature-lead"
 subpath = "feature-lead"
 prefix = "apps"
 
@@ -17,7 +27,7 @@ api_version = "2026-04"
 
 [auth]
 redirect_urls = [
-  "https://feature-lead-bridge.vercel.app/api/auth/callback"
+  "https://cooperandkid-feature-lead.vercel.app/api/auth/callback"
 ]
 
 [pos]

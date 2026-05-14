@@ -1,0 +1,81 @@
+<script>
+  (function () {
+    var proxyPath = {{ block.settings.proxy_path | default: '/apps/feature-lead' | json }};
+    var email = {% if customer %}{{ customer.email | json }}{% else %}""{% endif %};
+
+    function scopeForActions(el) {
+      if (!el || !el.closest) return document;
+      return (
+        el.closest('.cps-popup-feature-select') ||
+        el.closest('[class*="cps-popup-feature-select"]') ||
+        el.closest('[role="dialog"]') ||
+        el.closest('dialog') ||
+        document
+      );
+    }
+
+    function extract(scope) {
+      var wrap = scope.querySelector('.feature-grid__card-image-wrap');
+      var img = wrap && wrap.querySelector('img');
+      var inner = scope.querySelector('.cps-feature-option__inner');
+      var imageUrl = '';
+      if (img) {
+        imageUrl = img.currentSrc || img.src || (img.getAttribute('src') || '');
+      }
+      var title = inner ? String(inner.textContent || '').trim() : '';
+      return { imageUrl: imageUrl, title: title };
+    }
+
+    document.addEventListener(
+      'click',
+      function (e) {
+        var t = e.target;
+        if (!t || !t.closest) return;
+        var actions = t.closest('.cps-popup-feature-select__actions');
+        if (!actions) return;
+
+        var scope = scopeForActions(actions);
+        var picked = extract(scope);
+        if (!picked.imageUrl || !picked.title) return;
+        if (!email) return;
+
+        var body = JSON.stringify({
+          imageUrl: picked.imageUrl,
+          title: picked.title,
+          email: email,
+        });
+
+        try {
+          fetch(proxyPath, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: body,
+            credentials: 'same-origin',
+            keepalive: true,
+          }).catch(function () {});
+        } catch (_) {}
+      },
+      true
+    );
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "CPS feature lead bridge",
+  "target": "body",
+  "settings": [
+    {
+      "type": "paragraph",
+      "content": "POSTs to /apps/feature-lead on your store (e.g. https://esa.cooperandkid.com/apps/feature-lead). Shopify forwards to the app backend URL in Partner — keep the default path unless you changed the proxy subpath."
+    },
+    {
+      "type": "text",
+      "id": "proxy_path",
+      "label": "App proxy path",
+      "default": "/apps/feature-lead",
+      "info": "Default /apps/feature-lead on your shop domain (e.g. esa.cooperandkid.com). No DNS setup on your domain for the app."
+    }
+  ]
+}
+{% endschema %}

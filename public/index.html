@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Feature Lead Bridge</title>
+    <style>
+      :root {
+        font-family: system-ui, sans-serif;
+        color: #111;
+        background: #f6f6f7;
+      }
+      body {
+        margin: 0;
+        padding: 24px;
+        max-width: 960px;
+        margin-inline: auto;
+      }
+      h1 {
+        font-size: 1.25rem;
+        margin: 0 0 8px;
+      }
+      p {
+        margin: 0 0 16px;
+        color: #444;
+      }
+      label {
+        display: block;
+        font-size: 0.875rem;
+        margin-bottom: 6px;
+      }
+      input[type='password'],
+      input[type='text'] {
+        width: 100%;
+        max-width: 360px;
+        padding: 8px 10px;
+        border: 1px solid #c9cccf;
+        border-radius: 6px;
+      }
+      button {
+        margin-top: 10px;
+        padding: 8px 14px;
+        border-radius: 6px;
+        border: 1px solid #111;
+        background: #111;
+        color: #fff;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 10px 12px;
+        border-bottom: 1px solid #e8e8e8;
+        font-size: 0.875rem;
+        vertical-align: top;
+      }
+      th {
+        background: #fafafa;
+        font-weight: 600;
+      }
+      img.thumb {
+        width: 56px;
+        height: 56px;
+        object-fit: cover;
+        border-radius: 4px;
+      }
+      .err {
+        color: #b42318;
+        font-size: 0.875rem;
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Feature Lead Bridge</h1>
+    <p>
+      Customers still use <code>https://esa.cooperandkid.com/apps/feature-lead</code> on your store; Shopify forwards
+      that to your hosted app (e.g. Vercel’s <code>*.vercel.app</code> — no DNS records on your domain).<br /><br />
+      For <strong>Shop domain</strong>, use <code>cooperandkid.myshopify.com</code>. Set
+      <code>FEATURE_LEAD_ADMIN_TOKEN</code>, <code>SHOPIFY_ADMIN_ACCESS_TOKEN</code>, and optional
+      <code>SHOPIFY_SHOP_DOMAIN</code> in your host’s environment (Vercel → Project → Settings → Environment Variables).
+    </p>
+
+    <label for="shop">Shop domain</label>
+    <input id="shop" type="text" autocomplete="off" placeholder="cooperandkid.myshopify.com" />
+
+    <label for="token">Admin token</label>
+    <input id="token" type="password" autocomplete="off" placeholder="Paste admin token" />
+
+    <div>
+      <button type="button" id="load">Load submissions</button>
+    </div>
+    <div id="err" class="err" hidden></div>
+
+    <div style="margin-top: 20px; overflow-x: auto">
+      <table id="tbl" hidden>
+        <thead>
+          <tr>
+            <th>When</th>
+            <th>Shop</th>
+            <th>Email</th>
+            <th>Title</th>
+            <th>Image</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const tokenEl = $('token');
+      const shopEl = $('shop');
+      const errEl = $('err');
+      const tbody = $('tbody');
+      const tbl = $('tbl');
+
+      tokenEl.value = localStorage.getItem('feature_lead_admin_token') || '';
+      shopEl.value = localStorage.getItem('feature_lead_shop_domain') || '';
+
+      function showErr(msg) {
+        errEl.textContent = msg;
+        errEl.hidden = !msg;
+      }
+
+      $('load').addEventListener('click', async () => {
+        const token = tokenEl.value.trim();
+        if (!token) {
+          showErr('Enter admin token.');
+          return;
+        }
+        const shop = shopEl.value.trim();
+        if (!shop) {
+          showErr('Enter your shop domain (e.g. your-store.myshopify.com).');
+          return;
+        }
+        localStorage.setItem('feature_lead_admin_token', token);
+        localStorage.setItem('feature_lead_shop_domain', shop);
+        showErr('');
+        tbl.hidden = true;
+        tbody.replaceChildren();
+
+        const base = window.location.origin;
+        const listUrl = new URL(base + '/api/feature-lead');
+        listUrl.searchParams.set('token', token);
+        listUrl.searchParams.set('shop', shop);
+
+        let data;
+        try {
+          const r = await fetch(listUrl.toString(), { headers: { Accept: 'application/json' } });
+          data = await r.json();
+          if (!r.ok) throw new Error(data.error || r.statusText);
+        } catch (e) {
+          showErr(e instanceof Error ? e.message : 'Request failed');
+          return;
+        }
+
+        const rows = data.submissions || [];
+        if (!rows.length) {
+          showErr('No submissions yet (or metafield empty / Admin token scopes).');
+          tbl.hidden = false;
+          return;
+        }
+
+        for (const s of rows) {
+          const tr = document.createElement('tr');
+          const tdWhen = document.createElement('td');
+          const tdShop = document.createElement('td');
+          const tdEmail = document.createElement('td');
+          const tdTitle = document.createElement('td');
+          const tdImg = document.createElement('td');
+          tdWhen.textContent = String(s.createdAt || '');
+          tdShop.textContent = String(s.shop || '');
+          tdEmail.textContent = String(s.email || '');
+          tdTitle.textContent = String(s.title || '');
+          const imgUrl = String(s.imageUrl || '');
+          if (imgUrl.startsWith('https://') || imgUrl.startsWith('http://')) {
+            const im = document.createElement('img');
+            im.className = 'thumb';
+            im.alt = '';
+            im.referrerPolicy = 'no-referrer';
+            im.src = imgUrl;
+            tdImg.appendChild(im);
+          }
+          tr.append(tdWhen, tdShop, tdEmail, tdTitle, tdImg);
+          tbody.appendChild(tr);
+        }
+        tbl.hidden = false;
+        showErr('');
+      });
+
+    </script>
+  </body>
+</html>
