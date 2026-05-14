@@ -1,62 +1,204 @@
 <script>
   (function () {
-    var proxyPath = {{ block.settings.proxy_path | default: '/apps/feature-lead' | json }};
-    var email = {% if customer %}{{ customer.email | json }}{% else %}""{% endif %};
+    try {
+      var proxyPath = {{ block.settings.proxy_path | default: '/apps/feature-lead' | json }};
+      var customerEmail = {% if customer %}{{ customer.email | json }}{% else %}""{% endif %};
+      var GUEST_KEY = 'flb_guest_id';
 
-    function scopeForActions(el) {
-      if (!el || !el.closest) return document;
-      return (
-        el.closest('.cps-popup-feature-select') ||
-        el.closest('[class*="cps-popup-feature-select"]') ||
-        el.closest('[role="dialog"]') ||
-        el.closest('dialog') ||
-        document
-      );
-    }
-
-    function extract(scope) {
-      var wrap = scope.querySelector('.feature-grid__card-image-wrap');
-      var img = wrap && wrap.querySelector('img');
-      var inner = scope.querySelector('.cps-feature-option__inner');
-      var imageUrl = '';
-      if (img) {
-        imageUrl = img.currentSrc || img.src || (img.getAttribute('src') || '');
-      }
-      var title = inner ? String(inner.textContent || '').trim() : '';
-      return { imageUrl: imageUrl, title: title };
-    }
-
-    document.addEventListener(
-      'click',
-      function (e) {
-        var t = e.target;
-        if (!t || !t.closest) return;
-        var actions = t.closest('.cps-popup-feature-select__actions');
-        if (!actions) return;
-
-        var scope = scopeForActions(actions);
-        var picked = extract(scope);
-        if (!picked.imageUrl || !picked.title) return;
-        if (!email) return;
-
-        var body = JSON.stringify({
-          imageUrl: picked.imageUrl,
-          title: picked.title,
-          email: email,
-        });
-
+      function debugOn() {
         try {
-          fetch(proxyPath, {
+          return (
+            /[?&]flb_debug=1(?:&|$)/.test(String(location.search || '')) ||
+            sessionStorage.getItem('flb_debug') === '1'
+          );
+        } catch (_) {
+          return false;
+        }
+      }
+
+      function dbg() {
+        if (!debugOn() || !console || !console.warn) return;
+        var a = ['[Feature Lead Bridge]'];
+        for (var i = 0; i < arguments.length; i++) a.push(arguments[i]);
+        console.warn.apply(console, a);
+      }
+
+      function eventElement(ev) {
+        var n = ev.target;
+        if (!n) return null;
+        if (n.nodeType === 1) return n;
+        return n.parentElement || null;
+      }
+
+      function dialogScope(el) {
+        if (!el || !el.closest) return document;
+        return (
+          el.closest('.cps-popup-feature-select__dialog') ||
+          el.closest('.cps-popup__dialog') ||
+          el.closest('.cps-popup-feature-select') ||
+          el.closest('[role="dialog"]') ||
+          el.closest('.cps-popup') ||
+          document
+        );
+      }
+
+      function isContinueButton(el) {
+        if (!el || !el.closest) return false;
+        return !!(
+          el.closest('[data-cps-feature-continue]') ||
+          el.closest('.cps-popup-feature-select__continue') ||
+          el.closest('button.cps-popup-feature-select__continue')
+        );
+      }
+
+      function previewEmailFromStorage() {
+        try {
+          var v = sessionStorage.getItem('flb_preview_email');
+          return v ? String(v).trim().toLowerCase() : '';
+        } catch (_) {
+          return '';
+        }
+      }
+
+      /** Works in theme preview iframe: add ?flb_preview_email=you@example.com to the storefront URL (not admin top). */
+      function previewEmailFromQuery() {
+        try {
+          var sp = new URLSearchParams(String(location.search || ''));
+          var v = sp.get('flb_preview_email');
+          return v ? String(v).trim().toLowerCase() : '';
+        } catch (_) {
+          return '';
+        }
+      }
+
+      function resolveEmail(scope) {
+        var ce = customerEmail ? String(customerEmail).trim() : '';
+        if (ce) return ce.toLowerCase();
+        var lead = scope.querySelector('[data-cps-feature-lead-email]');
+        if (lead && lead.value) return String(lead.value).trim().toLowerCase();
+        var pq = previewEmailFromQuery();
+        if (pq) return pq;
+        var pe = previewEmailFromStorage();
+        if (pe) return pe;
+        return '';
+      }
+
+      /** Same browser = same id (localStorage). Lets the backend group guest submissions. */
+      function ensureGuestId() {
+        try {
+          var id = localStorage.getItem(GUEST_KEY);
+          if (id && String(id).length >= 8) return String(id);
+          if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            id = crypto.randomUUID();
+          } else {
+            id = 'g-' + String(Date.now()) + '-' + String(Math.random()).slice(2, 12);
+          }
+          localStorage.setItem(GUEST_KEY, id);
+          return id;
+        } catch (_) {
+          return 'g-' + String(Date.now());
+        }
+      }
+
+      function findOptionInput(scope) {
+        var sel =
+          scope.querySelector('input[data-cps-feature-option-input]:checked') ||
+          scope.querySelector('input[name^="cps-feature-select"]:checked');
+        if (sel) return sel;
+
+        var fromLabels = scope.querySelectorAll(
+          'label.is-selected input[data-cps-feature-option-input], label.selected input[data-cps-feature-option-input], label[aria-checked="true"] input[data-cps-feature-option-input], label.cps-feature-option--selected input[data-cps-feature-option-input]'
+        );
+        if (fromLabels.length) return fromLabels[0];
+
+        var all = scope.querySelectorAll('input[data-cps-feature-option-input]');
+        if (all.length === 1) return all[0];
+        return null;
+      }
+
+      function extract(scope) {
+        var input = findOptionInput(scope);
+        if (!input) return { imageUrl: '', title: '' };
+
+        var title = (input.getAttribute('data-cps-feature-title') || '').trim();
+        var imageUrl = (input.getAttribute('data-cps-feature-image') || '').trim();
+
+        var label = input.closest('label.cps-feature-option') || input.closest('.feature-grid__card');
+        if (!imageUrl && label) {
+          var wrap = label.querySelector('.feature-grid__card-image-wrap');
+          var img = wrap && wrap.querySelector('img');
+          if (img) {
+            imageUrl = (img.currentSrc || img.src || img.getAttribute('src') || '').trim();
+          }
+        }
+        if (!title && label) {
+          var titleEl = label.querySelector('.feature-grid__card-title');
+          title = titleEl ? String(titleEl.textContent || '').trim() : '';
+        }
+        return { imageUrl: imageUrl, title: title };
+      }
+
+      function postUrl() {
+        try {
+          return new URL(proxyPath, window.location.origin).toString();
+        } catch (_) {
+          return proxyPath;
+        }
+      }
+
+      document.addEventListener(
+        'click',
+        function (e) {
+          var t = eventElement(e);
+          if (!t || !t.closest) return;
+          if (!isContinueButton(t)) return;
+
+          var scope = dialogScope(t);
+          var picked = extract(scope);
+          if (!picked.imageUrl || !picked.title) {
+            dbg('skip POST: missing image or title', picked, 'scopeIsDocument', scope === document);
+            return;
+          }
+
+          var email = resolveEmail(scope);
+          var guestId = ensureGuestId();
+
+          var url = postUrl();
+          var body = JSON.stringify({
+            imageUrl: picked.imageUrl,
+            title: picked.title,
+            email: email,
+            guestId: guestId,
+          });
+
+          dbg('POST', url, 'email?', !!email, 'guestId', guestId.slice(0, 8) + '…');
+
+          fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: body,
             credentials: 'same-origin',
             keepalive: true,
-          }).catch(function () {});
-        } catch (_) {}
-      },
-      true
-    );
+          })
+            .then(function (r) {
+              dbg('response', r.status, r.statusText);
+              if (!r.ok) {
+                return r.text().then(function (txt) {
+                  dbg('error body (first 800 chars)', txt ? txt.slice(0, 800) : '');
+                });
+              }
+            })
+            .catch(function (err) {
+              dbg('fetch error', err);
+            });
+        },
+        true
+      );
+
+      dbg('bridge active', 'proxy', proxyPath, 'tip: theme editor = iframe — use ?flb_preview_email= or console inside preview frame');
+    } catch (err) {
+      if (console && console.error) console.error('[Feature Lead Bridge] init error', err);
+    }
   })();
 </script>
 
@@ -67,14 +209,14 @@
   "settings": [
     {
       "type": "paragraph",
-      "content": "POSTs to /apps/feature-lead on your store (e.g. https://esa.cooperandkid.com/apps/feature-lead). Shopify forwards to the app backend URL in Partner — keep the default path unless you changed the proxy subpath."
+      "content": "CONTINUE POSTs image+title. Email from login, lead field, URL ?flb_preview_email=, or sessionStorage flb_preview_email (must run in the storefront frame — theme editor preview is an iframe). Guests: flb_guest_id in localStorage + guestId. Debug: ?flb_debug=1 or sessionStorage flb_debug=1; failed POSTs log response body."
     },
     {
       "type": "text",
       "id": "proxy_path",
       "label": "App proxy path",
       "default": "/apps/feature-lead",
-      "info": "Default /apps/feature-lead on your shop domain (e.g. esa.cooperandkid.com). No DNS setup on your domain for the app."
+      "info": "Default /apps/feature-lead on your shop domain (e.g. esa.cooperandkid.com)."
     }
   ]
 }

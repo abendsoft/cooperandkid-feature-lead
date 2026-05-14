@@ -85,7 +85,12 @@ export default async function handler(req: VercelLikeReq, res: VercelLikeRes) {
   const query = (req.query || {}) as Record<string, string | string[] | undefined>;
 
   if (!verifyAppProxySignature(query, proxySecret) || !verifyProxyTimestamp(query)) {
-    res.status(401).json({ ok: false, error: 'invalid app proxy signature or timestamp' });
+    res.status(401).json({
+      ok: false,
+      error: 'invalid app proxy signature or timestamp',
+      hint:
+        'Set SHOPIFY_APP_PROXY_SECRET on the host to the same value as your app Client secret (Partner Dashboard → App → Client credentials). After changing app proxy URL in shopify.app.toml, run shopify app deploy.',
+    });
     return;
   }
 
@@ -99,7 +104,7 @@ export default async function handler(req: VercelLikeReq, res: VercelLikeRes) {
     ? query.logged_in_customer_id[0]
     : query.logged_in_customer_id;
 
-  let body: { imageUrl?: string; title?: string; email?: string };
+  let body: { imageUrl?: string; title?: string; email?: string; guestId?: string };
   try {
     body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body as typeof body);
   } catch {
@@ -110,9 +115,18 @@ export default async function handler(req: VercelLikeReq, res: VercelLikeRes) {
   const imageUrl = typeof body.imageUrl === 'string' ? body.imageUrl.trim() : '';
   const title = typeof body.title === 'string' ? body.title.trim() : '';
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+  const guestIdRaw = typeof body.guestId === 'string' ? body.guestId.trim() : '';
+  const guestId = guestIdRaw.length > 200 ? guestIdRaw.slice(0, 200) : guestIdRaw;
 
-  if (!imageUrl || !title || !email) {
-    res.status(400).json({ ok: false, error: 'imageUrl, title, and email are required' });
+  if (!imageUrl || !title) {
+    res.status(400).json({ ok: false, error: 'imageUrl and title are required' });
+    return;
+  }
+  if (!email && guestId.length < 8) {
+    res.status(400).json({
+      ok: false,
+      error: 'Provide customer email (login or lead field) or guestId (browser session id, min 8 chars)',
+    });
     return;
   }
 
@@ -121,6 +135,7 @@ export default async function handler(req: VercelLikeReq, res: VercelLikeRes) {
       imageUrl,
       title,
       email,
+      guestId: guestId || undefined,
       loggedInCustomerId: loggedInCustomerId || undefined,
     });
     res.status(200).json({ ok: true, persisted: true });

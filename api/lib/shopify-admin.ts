@@ -60,7 +60,10 @@ export type Submission = {
   shop?: string;
   imageUrl: string;
   title: string;
+  /** Customer email when known; empty for anonymous browser sessions. */
   email: string;
+  /** Stable id from browser localStorage for guests (ties repeat visits on same device). */
+  guestId?: string;
   createdAt: string;
   loggedInCustomerId?: string;
 };
@@ -109,7 +112,8 @@ export async function appendSubmissionToShop(
     shop: shopDomain,
     imageUrl: partial.imageUrl,
     title: partial.title,
-    email: partial.email,
+    email: partial.email || '',
+    guestId: partial.guestId || undefined,
     createdAt: new Date().toISOString(),
     loggedInCustomerId: partial.loggedInCustomerId,
   };

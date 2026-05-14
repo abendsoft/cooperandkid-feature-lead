@@ -92,6 +92,15 @@
       <code>FEATURE_LEAD_ADMIN_TOKEN</code>, <code>SHOPIFY_ADMIN_ACCESS_TOKEN</code>, and optional
       <code>SHOPIFY_SHOP_DOMAIN</code> in your host’s environment (Vercel → Project → Settings → Environment Variables).
     </p>
+    <p style="font-size: 0.875rem; color: #555">
+      <strong>If rows stay empty after testing:</strong> open the live storefront (or theme preview), DevTools →
+      <strong>Network</strong>, filter <code>feature-lead</code>, click Continue, and check the POST status (200 vs 401).
+      In the <strong>theme editor</strong>, the preview runs in an <strong>iframe</strong>: the top-level console’s
+      <code>sessionStorage</code> does not apply to the bridge script. Use a preview URL query like
+      <code>?flb_debug=1&amp;flb_preview_email=test@example.com</code> on the <strong>storefront</strong> URL, or open
+      DevTools from inside the preview frame. A 401 usually means <code>SHOPIFY_APP_PROXY_SECRET</code> does not match
+      the app’s Client secret in the Partner Dashboard.
+    </p>
 
     <label for="shop">Shop domain</label>
     <input id="shop" type="text" autocomplete="off" placeholder="cooperandkid.myshopify.com" />
@@ -110,7 +119,7 @@
           <tr>
             <th>When</th>
             <th>Shop</th>
-            <th>Email</th>
+            <th>Email / guest</th>
             <th>Title</th>
             <th>Image</th>
           </tr>
@@ -169,7 +178,9 @@
 
         const rows = data.submissions || [];
         if (!rows.length) {
-          showErr('No submissions yet (or metafield empty / Admin token scopes).');
+          showErr(
+            'No submissions in this shop’s metafield yet. On the storefront, Network → POST …/apps/feature-lead should return 200; 401 means fix SHOPIFY_APP_PROXY_SECRET (Client secret). Confirm Shop domain matches the store where you tested.'
+          );
           tbl.hidden = false;
           return;
         }
@@ -183,7 +194,11 @@
           const tdImg = document.createElement('td');
           tdWhen.textContent = String(s.createdAt || '');
           tdShop.textContent = String(s.shop || '');
-          tdEmail.textContent = String(s.email || '');
+          {
+            const em = String(s.email || '').trim();
+            const gid = String(s.guestId || '').trim();
+            tdEmail.textContent = em || (gid ? 'Guest · ' + gid.slice(0, 12) + (gid.length > 12 ? '…' : '') : '—');
+          }
           tdTitle.textContent = String(s.title || '');
           const imgUrl = String(s.imageUrl || '');
           if (imgUrl.startsWith('https://') || imgUrl.startsWith('http://')) {
