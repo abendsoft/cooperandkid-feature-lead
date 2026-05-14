@@ -2,6 +2,8 @@ import * as fs from 'node:fs';
 import * as http from 'node:http';
 import * as path from 'node:path';
 import type { IncomingHttpHeaders } from 'node:http';
+import authCallback from './api/auth/callback';
+import authInstall from './api/auth/install';
 import handler from './api/feature-lead';
 
 const cwd = process.cwd();
@@ -115,6 +117,22 @@ const server = http.createServer(async (req, res) => {
       };
       const vres = createAdapter(res);
       await handler(vreq, vres);
+      return;
+    }
+
+    if (pathname === '/api/auth/install') {
+      const query = parseSearchParams(url.search);
+      const vreq: Req = { method: req.method, query, headers: req.headers };
+      const vres = createAdapter(res);
+      await authInstall(vreq, vres);
+      return;
+    }
+
+    if (pathname === '/api/auth/callback') {
+      const query = parseSearchParams(url.search);
+      const vreq: Req = { method: req.method, query, headers: req.headers };
+      const vres = createAdapter(res);
+      await authCallback(vreq, vres);
       return;
     }
 

@@ -93,6 +93,16 @@
       <code>SHOPIFY_SHOP_DOMAIN</code> in your host’s environment (Vercel → Project → Settings → Environment Variables).
     </p>
     <p style="font-size: 0.875rem; color: #555">
+      <strong>Partner app: get <code>SHOPIFY_ADMIN_ACCESS_TOKEN</code> (not shown in Dev Dashboard)</strong><br />
+      The dashboard only shows Client ID + Client secret. The Admin token comes from OAuth once:
+      (1) In Vercel add <code>OAUTH_STATE_SECRET</code> (any long random string),
+      <code>SHOPIFY_API_KEY</code> (Client ID), <code>SHOPIFY_API_SECRET</code> (Client secret), optional <code>SCOPES</code>
+      (comma list, same as your app). (2) Redeploy. (3) Visit
+      <code id="installUrl"></code> (replace shop if needed). (4) Approve; copy the token into
+      <code>SHOPIFY_ADMIN_ACCESS_TOKEN</code> and redeploy. Use <code>SHOPIFY_APP_URL</code> if your public URL is not
+      <code>VERCEL_URL</code>.
+    </p>
+    <p style="font-size: 0.875rem; color: #555">
       <strong>If rows stay empty after testing:</strong> open the live storefront (or theme preview), DevTools →
       <strong>Network</strong>, filter <code>feature-lead</code>, click Continue, and check the POST status (200 vs 401).
       In the <strong>theme editor</strong>, the preview runs in an <strong>iframe</strong>: the top-level console’s
@@ -130,6 +140,11 @@
 
     <script>
       const $ = (id) => document.getElementById(id);
+      const base = window.location.origin;
+      const iu = $('installUrl');
+      if (iu) {
+        iu.textContent = base + '/api/auth/install?shop=cooperandkid.myshopify.com';
+      }
       const tokenEl = $('token');
       const shopEl = $('shop');
       const errEl = $('err');
@@ -161,7 +176,6 @@
         tbl.hidden = true;
         tbody.replaceChildren();
 
-        const base = window.location.origin;
         const listUrl = new URL(base + '/api/feature-lead');
         listUrl.searchParams.set('token', token);
         listUrl.searchParams.set('shop', shop);
