@@ -1,0 +1,5 @@
+# Ignore the entire .shopify directory
+*node_modules
+.vercel
+.env
+.env.*

@@ -1,0 +1,73 @@
+{
+  "name": "Feature Lead Bridge",
+  "handle": "",
+  "modules": [
+    {
+      "type": "app_access",
+      "handle": "app_access",
+      "uid": "app_access",
+      "assets": "app_access",
+      "target": "",
+      "config": {
+        "scopes": "read_customers,read_draft_orders,write_customers,write_draft_orders",
+        "use_legacy_install_flow": false,
+        "redirect_url_allowlist": [
+          "https://feature-lead-bridge.vercel.app/api/auth/callback"
+        ]
+      }
+    },
+    {
+      "type": "webhooks",
+      "handle": "webhooks",
+      "uid": "webhooks",
+      "assets": "webhooks",
+      "target": "",
+      "config": {
+        "api_version": "2026-04"
+      }
+    },
+    {
+      "type": "app_proxy",
+      "handle": "app_proxy",
+      "uid": "app_proxy",
+      "assets": "app_proxy",
+      "target": "",
+      "config": {
+        "url": "https://feature-lead-bridge.vercel.app/api/feature-lead",
+        "subpath": "feature-lead",
+        "prefix": "apps"
+      }
+    },
+    {
+      "type": "point_of_sale",
+      "handle": "point_of_sale",
+      "uid": "point_of_sale",
+      "assets": "point_of_sale",
+      "target": "",
+      "config": {
+        "embedded": false
+      }
+    },
+    {
+      "type": "app_home",
+      "handle": "app_home",
+      "uid": "app_home",
+      "assets": "app_home",
+      "target": "",
+      "config": {
+        "app_url": "https://cooperandkid-feature-lead.vercel.app/",
+        "embedded": false
+      }
+    },
+    {
+      "type": "branding",
+      "handle": "branding",
+      "uid": "branding",
+      "assets": "branding",
+      "target": "",
+      "config": {
+        "name": "Feature Lead Bridge"
+      }
+    }
+  ]
+}

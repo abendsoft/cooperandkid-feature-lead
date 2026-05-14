@@ -1,4 +1,3 @@
-
-export default function handler(_req: any, res: any) {
+export default function handler(req, res) {
   res.status(200).json({ ok: true, message: 'feature-lead bridge alive' });
 }
